@@ -1,11 +1,13 @@
-/* fetch-assets.mjs — 힙스필드 생성 이미지를 public/img/ 로 다운로드 (자체 호스팅)
-   실행: node scripts/fetch-assets.mjs */
+/* fetch-assets.mjs — 빌드에 필요한 외부 자산을 public/ 로 다운로드 (자체 호스팅)
+   1) 힙스필드 이미지 16종 → public/img/
+   2) DotPad 공식 SDK → public/DotPadSDK-3.0.0.js
+   실행: node scripts/fetch-assets.mjs (npm run build 의 prebuild 단계에서 자동 실행) */
 import { mkdirSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
 const CDN = 'https://d8j0ntlcm91z4.cloudfront.net/user_3CcWiPncoAiF9dchSMyN7go3kbf/';
-const FILES = {
+const IMAGES = {
   'hero.webp': 'hf_20260720_014955_37f909cb-6a00-44f6-9938-b858dc6e93bf_min.webp',
   'tile-chips.webp': 'hf_20260720_014958_88f347de-da69-4eea-b7c1-cf1e9bbe3a50_min.webp',
   'tile-cards.webp': 'hf_20260720_014959_15a0f02e-ee95-4202-8bab-b355270891d3_min.webp',
@@ -24,13 +26,28 @@ const FILES = {
   'av-owl.webp': 'hf_20260720_043248_11eb203c-b388-4eb1-9898-19520bbf262c_min.webp'
 };
 
-const dir = join(dirname(fileURLToPath(import.meta.url)), '..', 'public', 'img');
-mkdirSync(dir, { recursive: true });
+// DotPad 공식 SDK (원본: baekjunjoo/superdot 루트)
+const SDK_URL = 'https://raw.githubusercontent.com/baekjunjoo/superdot/main/DotPadSDK-3.0.0.js';
 
-for (const [name, file] of Object.entries(FILES)) {
-  const res = await fetch(CDN + file);
-  if (!res.ok) { console.error('실패:', name, res.status); continue; }
-  writeFileSync(join(dir, name), Buffer.from(await res.arrayBuffer()));
-  console.log('저장:', name);
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const imgDir = join(root, 'public', 'img');
+mkdirSync(imgDir, { recursive: true });
+
+let ok = 0, fail = 0;
+for (const [name, file] of Object.entries(IMAGES)) {
+  try {
+    const res = await fetch(CDN + file);
+    if (!res.ok) { console.error('이미지 실패:', name, res.status); fail++; continue; }
+    writeFileSync(join(imgDir, name), Buffer.from(await res.arrayBuffer()));
+    ok++;
+  } catch (e) { console.error('이미지 오류:', name, e.message); fail++; }
 }
-console.log('완료 → public/img/');
+console.log(`이미지 ${ok} 성공 / ${fail} 실패 → public/img/`);
+
+try {
+  const res = await fetch(SDK_URL);
+  if (res.ok) {
+    writeFileSync(join(root, 'public', 'DotPadSDK-3.0.0.js'), Buffer.from(await res.arrayBuffer()));
+    console.log('DotPad SDK 저장 → public/DotPadSDK-3.0.0.js');
+  } else console.error('SDK 실패:', res.status);
+} catch (e) { console.error('SDK 오류:', e.message); }

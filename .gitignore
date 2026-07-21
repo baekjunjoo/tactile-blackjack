@@ -1,6 +1,7 @@
 node_modules/
 dist/
 public/img/
+public/DotPadSDK-3.0.0.js
 *.log
 .DS_Store
 vite.config.js.timestamp-*
