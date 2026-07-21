@@ -85,6 +85,8 @@ export default function Room({ client, me, isHost, code, mode, say, log, onLeave
     }
     if (s.phase === 'result') {
       if (k === 'F1') return client.sendAction('ready');
+      const allBroke = s.players.length && s.players.every((p) => p.chips <= 0);
+      if (k === 'F3' && allBroke) return client.sendAction('newgame');
       return client.sendAction('status');
     }
     return client.sendAction('status');
@@ -134,8 +136,8 @@ export default function Room({ client, me, isHost, code, mode, say, log, onLeave
     if (box) {
       const el = document.activeElement;
       const focusInside = el && box.contains(el);
-      const becmeMyTurn = myTurnNow && !prevMyTurn.current;
-      if ((focusInside && el.disabled) || becmeMyTurn) {
+      const becameMyTurn = myTurnNow && !prevMyTurn.current;
+      if ((focusInside && el.disabled) || becameMyTurn) {
         const nextBtn = box.querySelector('button:not([disabled])');
         if (nextBtn) nextBtn.focus();
         else if (focusInside && el.disabled) box.focus();
@@ -182,12 +184,37 @@ export default function Room({ client, me, isHost, code, mode, say, log, onLeave
     }
   }
 
+  /* 초대 링크 복사 — iframe/비보안 등 clipboard 제한 환경에서도 동작하도록 단계 폴백 */
+  function inviteLink() {
+    return location.origin + location.pathname + '?room=' + code + (mode === 'local' ? '&mode=local' : '');
+  }
+  function legacyCopy(text) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed'; ta.style.top = '0'; ta.style.left = '0'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      return ok;
+    } catch (_) { return false; }
+  }
   function copyInvite() {
-    const link = location.origin + location.pathname + '?room=' + code + (mode === 'local' ? '&mode=local' : '');
-    navigator.clipboard.writeText(link).then(
-      () => say('초대 링크를 복사했습니다.'),
-      () => say('복사 실패. 코드를 직접 알려주세요: ' + code.split('').join(' '))
-    );
+    const link = inviteLink();
+    const done = () => say('초대 링크를 복사했습니다.');
+    const manual = () => {
+      try { window.prompt('이 링크를 복사해 친구에게 보내세요:', link); } catch (_) {}
+      say('복사가 제한된 환경입니다. 방 코드를 직접 알려주세요. ' + code.split('').join(' '));
+    };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(link).then(done, () => { legacyCopy(link) ? done() : manual(); });
+      } else {
+        legacyCopy(link) ? done() : manual();
+      }
+    } catch (_) {
+      legacyCopy(link) ? done() : manual();
+    }
   }
 
   if (st === undefined) { return <div className="room-closed"><p>방에 접속하는 중…</p></div>; }
@@ -296,7 +323,7 @@ export default function Room({ client, me, isHost, code, mode, say, log, onLeave
           <button className="btn-primary pk-big-btn" onClick={() => client.sendAction('ready')} disabled={meP && (meP.ready || meP.chips <= 0)}>
             다음 판 준비 (F1)
           </button>
-          {amHost && allBroke && <button onClick={() => client.sendAction('newgame')}>새 게임 ({CHIP} 리셋)</button>}
+          {amHost && allBroke && <button className="pk-big-btn" onClick={() => client.sendAction('newgame')}>새 게임 (F3)</button>}
         </>
       );
     }
