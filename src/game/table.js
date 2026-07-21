@@ -5,7 +5,7 @@ import * as BJ from './blackjack.js';
 import { MAX_SEATS, START_CHIPS } from '../config.js';
 
 const BET_OPTIONS = [10, 25, 50, 100];
-export const EMOTES = ['나이스!', '굿 게임!', '아까다!', '조심하세요~', '서둘러 주세요!', 'ㅋㅋㅋ'];
+export const EMOTES = ['나이스!', '굿 게임!', '아깝다!', '조심하세요~', '서둘러 주세요!', '크크크'];
 
 export function createTable({ announce = () => {}, onState = () => {}, rng = Math.random, deckFactory = null, dealerDelay = 900, turnTimeout = 30000, scoreMode = false } = {}) {
   const T = {
@@ -125,7 +125,7 @@ export function createTable({ announce = () => {}, onState = () => {}, rng = Mat
       if (!p.sitOut && p.bet > p.chips) p.bet = betOptions(p)[0];
       if (p.sitOut) A('칩이 없어 이번 판은 관전합니다.', p.id);
     });
-    A(T.round + '라운드. 베팅을 정하고 확정해 주세요. 팬 키로 조절, 에프원 확정.');
+    A(T.round + '라운드. 베팅을 정하고 확정해 주세요. 팬 키로 조절, F1 확정.');
     emit();
   }
 
@@ -178,7 +178,7 @@ export function createTable({ announce = () => {}, onState = () => {}, rng = Mat
       p.insDecided = p.chips < Math.ceil(p.bet / 2);
       if (p.insDecided) A('보험을 걸 칩이 부족해 자동 패스합니다.', p.id);
     });
-    A('딜러 오픈 카드가 에이스입니다. 보험은 딜러가 블랙잭일 때만 돌려받는 추가 베팅이에요. 잘 모르겠으면 에프투 패스를 누르세요. 에프원 보험(베팅의 절반), 에프투 패스.');
+    A('딜러 오픈 카드가 에이스입니다. 보험은 딜러가 블랙잭일 때만 돌려받는 추가 베팅이에요. 잘 모르겠으면 F2 패스를 누르세요. F1 보험(베팅의 절반), F2 패스.');
     if (allInsDecided()) return resolveInsurance();
     emit();
   }
@@ -247,7 +247,7 @@ export function createTable({ announce = () => {}, onState = () => {}, rng = Mat
       T.turnId = turn.id;
       nextHand(turn);
       if (turn.done) return advanceTurn();
-      A('당신 차례입니다. 에프원 히트, 에프투 스탠드' + (canDouble(turn) ? ', 에프쓰리 더블다운' : '') + (canSplit(turn) ? ', 팬 오른쪽 스플릿' : '') + '.', turn.id);
+      A('당신 차례입니다. F1 히트, F2 스탠드' + (canDouble(turn) ? ', F3 더블다운' : '') + (canSplit(turn) ? ', 팬 오른쪽 스플릿' : '') + '.', turn.id);
       A(turn.nick + ' 님 차례.', { except: turn.id }, 'others');
       armTurnTimer(turn);
       emit();
@@ -340,12 +340,12 @@ export function createTable({ announce = () => {}, onState = () => {}, rng = Mat
       const total = p.results.reduce((a, r) => a + r.payout, 0);
       p.chips += total;
       const words = p.results.map((r) => RESULT_KO[r.outcome]).join(', ');
-      A(words + (total > 0 ? '. ' + total + ' 칩 획득' : '') + '. 보유 칩 ' + p.chips + '. 에프원 준비.', p.id);
+      A(words + (total > 0 ? '. ' + total + ' 칩 획득' : '') + '. 보유 칩 ' + p.chips + '. F1 준비.', p.id);
       lines.push(p.nick + ' ' + words);
     });
     if (lines.length) A('라운드 결과 요약. ' + lines.join('. ') + '.', undefined, 'others');
     const standing = T.players.filter((p) => p.chips > 0).length;
-    if (!standing) A('모든 플레이어의 칩이 소진되었습니다. 호스트가 새 게임을 시작할 수 있습니다.');
+    if (!standing) A('모든 플레이어의 칩이 소진되었습니다. 호스트는 F3을 눌러 새 게임을 시작할 수 있습니다.');
     emit();
   }
 
@@ -365,10 +365,10 @@ export function createTable({ announce = () => {}, onState = () => {}, rng = Mat
     }
     const dv = T.dealer.length ? BJ.cardNameKo(T.dealer[0]) : '없음';
     const h = p.hands[p.activeHand] || [];
-    if (T.phase === 'betting') A('베팅 ' + p.bet + ', 보유 칩 ' + p.chips + '. ' + (p.betConfirmed ? '확정됨, 대기 중.' : '에프원 확정.'), id);
-    else if (T.phase === 'insurance') A('딜러 오픈 에이스. 당신 카드 ' + handKo(h) + '. ' + (p.insDecided ? (p.insBet > 0 ? '보험 ' + p.insBet + ' 걸었습니다.' : '패스했습니다.') + ' 대기 중.' : '에프원 보험, 에프투 패스.'), id);
+    if (T.phase === 'betting') A('베팅 ' + p.bet + ', 보유 칩 ' + p.chips + '. ' + (p.betConfirmed ? '확정됨, 대기 중.' : 'F1 확정.'), id);
+    else if (T.phase === 'insurance') A('딜러 오픈 에이스. 당신 카드 ' + handKo(h) + '. ' + (p.insDecided ? (p.insBet > 0 ? '보험 ' + p.insBet + ' 걸었습니다.' : '패스했습니다.') + ' 대기 중.' : 'F1 보험, F2 패스.'), id);
     else if (T.phase === 'acting' || T.phase === 'dealer') A('당신 카드 ' + handKo(h) + ', 합계 ' + vKo(h) + '. 딜러 오픈 카드 ' + dv + '. ' + (T.turnId === id ? '당신 차례.' : '대기 중.'), id);
-    else if (T.phase === 'result') A((p.results.length ? '결과 ' + p.results.map((r) => RESULT_KO[r.outcome]).join(', ') + '. ' : '') + '보유 칩 ' + p.chips + '. 에프원 준비.', id);
+    else if (T.phase === 'result') A((p.results.length ? '결과 ' + p.results.map((r) => RESULT_KO[r.outcome]).join(', ') + '. ' : '') + '보유 칩 ' + p.chips + '. F1 준비.', id);
     else A('대기실입니다. 호스트가 게임을 시작하면 베팅이 열립니다.', id);
   }
 
@@ -425,7 +425,7 @@ export function createTable({ announce = () => {}, onState = () => {}, rng = Mat
         emit();
         return checkAllConfirmed();
       }
-      A('팬 키로 베팅 조절, 에프원 확정, 에프투 규칙 설명.', id);
+      A('팬 키로 베팅 조절, F1 확정, F2 규칙 설명.', id);
     } else if (T.phase === 'insurance') {
       if (p.sitOut || !p.handBets.length) { A('이번 판은 관전입니다.', id); return; }
       if (p.insDecided) { A('이미 결정했습니다. 다른 플레이어 대기 중.', id); return; }
@@ -445,7 +445,7 @@ export function createTable({ announce = () => {}, onState = () => {}, rng = Mat
         if (allInsDecided()) resolveInsurance();
         return;
       }
-      A('에프원 보험(베팅의 절반), 에프투 패스.', id);
+      A('F1 보험(베팅의 절반), F2 패스.', id);
     } else if (T.phase === 'acting') {
       if (T.turnId !== id) { A('아직 당신 차례가 아닙니다. 잠시만요.', id); return; }
       if (act === 'hit') { clearTurnTimer(); return doHit(p, false); }
@@ -463,7 +463,7 @@ export function createTable({ announce = () => {}, onState = () => {}, rng = Mat
         clearTurnTimer();
         return doSplit(p);
       }
-      A('에프원 히트, 에프투 스탠드' + (canDouble(p) ? ', 에프쓰리 더블다운' : '') + (canSplit(p) ? ', 팬 오른쪽 스플릿' : '') + '.', id);
+      A('F1 히트, F2 스탠드' + (canDouble(p) ? ', F3 더블다운' : '') + (canSplit(p) ? ', 팬 오른쪽 스플릿' : '') + '.', id);
     } else if (T.phase === 'dealer') {
       A('잠시만요. 딜러가 카드를 뽑는 중입니다.', id);
     } else if (T.phase === 'result') {
@@ -481,7 +481,7 @@ export function createTable({ announce = () => {}, onState = () => {}, rng = Mat
         A('새 게임. 모두 칩 ' + START_CHIPS + '개로 시작합니다.');
         return startBetting();
       }
-      A('에프원을 누르면 다음 판 준비 완료.', id);
+      A('F1을 누르면 다음 판 준비 완료.', id);
     }
   }
 
