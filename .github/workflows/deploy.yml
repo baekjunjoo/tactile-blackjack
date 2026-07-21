@@ -1,17 +1,16 @@
-name: Build & Deploy (GitHub Pages)
+name: Build to docs (branch Pages)
 
 on:
   push:
     branches: [main]
+    paths-ignore: ['docs/**']
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
-  group: pages
+  group: build-docs
   cancel-in-progress: true
 
 jobs:
@@ -26,21 +25,18 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Fetch 자산(이미지 + DotPad SDK)
         run: node scripts/fetch-assets.mjs || echo "asset fetch failed - runtime CDN fallback"
-      - name: Test (154 checks, 비차단)
+      - name: Test (비차단)
         run: npm test || echo "tests reported failures"
       - name: Build
         run: npx vite build
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - uses: actions/deploy-pages@v4
-        id: deployment
+      - name: Publish to docs/
+        run: |
+          rm -rf docs
+          mv dist docs
+          touch docs/.nojekyll
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs
+          git commit -m "build: publish to docs [skip ci]" || echo "no changes"
+          git pull --rebase origin main || true
+          git push
