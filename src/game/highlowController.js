@@ -1,7 +1,4 @@
-/* highlowController.js — 하이·로우 싱글 모드 상태 머신 + 키 라우팅 + 음성/닷패드
-   규칙: 현재 카드가 보임 → F1 하이(다음이 높다) / F2 로우(다음이 낮다) → 카드 공개.
-   연승(스트릭)마다 +1점, 실패 시 스트릭 리셋. F4 상태 읽기.
-   닷패드: 현재 카드 = 큰 랭크, 하단에 스트릭 게이지. */
+/* highlowController.js — 하이·로우 싱글 모드 상태 머신 + 키 라우팅 + 음성/닷패드 */
 
 import * as HL from './highlow.js';
 import { createFrame, clearBuf, rect, dashedHLine, drawGlyph, encodeRows } from '../dotpad/frame.js';
@@ -17,7 +14,6 @@ function textLineHex(str) {
   return hex;
 }
 
-/* 큰 카드(랭크 확대) 중앙 */
 function drawBigCard(buf, card) {
   const x = 20, y = 3, w = 20, h = 30;
   rect(buf, x, y, w, h);
@@ -28,7 +24,7 @@ function drawBigCard(buf, card) {
 export function createHighLow({ say, rng = Math.random, deckFactory = null } = {}) {
   const listeners = new Set();
   const st = {
-    phase: 'guess',    // guess | reveal | over
+    phase: 'guess',
     deck: [], current: null, next: null,
     score: 0, streak: 0, best: 0, last: null
   };
@@ -67,7 +63,7 @@ export function createHighLow({ say, rng = Math.random, deckFactory = null } = {
       st.phase = 'over';
       st.current = next; emit(); return;
     }
-    st.current = next;   // 방금 나온 카드가 다음 기준
+    st.current = next;
     emit();
   }
 
