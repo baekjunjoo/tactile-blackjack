@@ -1,0 +1,165 @@
+/* render.js — 게임 상태 → 촉각 프레임(60×40) + 텍스트라인(20셀)
+   카드 = 11×16 외곽선 + 랭크 글리프(2배). 딜러 홀카드 = X 패턴. 칩 게이지 = 하단. */
+
+import { createFrame, clearBuf, rect, line, dashedHLine, drawGlyph, drawText, textWidth, encodeRows, W } from './frame.js';
+import { strToTextCells } from './braille-core.js';
+import { handValue } from '../game/blackjack.js';
+import { getPrefs } from '../prefs.js';
+
+const CARD_W = 11, CARD_H = 16, PITCH = 12;
+const DEALER_Y = 1, PLAYER_Y = 22, DIVIDER_Y = 19;
+const GAUGE_BASE_Y = 34, GAUGE_BAR_Y = 36;
+
+function drawCard(buf, x, y, card, hidden) {
+  rect(buf, x, y, CARD_W, CARD_H);
+  if (hidden || card.hidden) {
+    line(buf, x + 2, y + 2, x + CARD_W - 3, y + CARD_H - 3);
+    line(buf, x + CARD_W - 3, y + 2, x + 2, y + CARD_H - 3);
+    return;
+  }
+  if (card.r === '10') {
+    drawGlyph(buf, '1', x + 2, y + 3, 1, 2);
+    drawGlyph(buf, '0', x + 6, y + 3, 1, 2);
+  } else {
+    drawGlyph(buf, card.r, x + 2, y + 3, 2, 2);
+  }
+}
+
+function drawHand(buf, cards, y, hideHole) {
+  const shown = cards.slice(-5);
+  const offset = cards.length - shown.length;
+  shown.forEach((c, i) => {
+    const hidden = hideHole && (offset + i) === 1;
+    drawCard(buf, i * PITCH, y, c, hidden);
+  });
+}
+
+function drawGauge(buf, chips) {
+  const g = Math.max(0, Math.min(58, Math.round(chips / 5)));
+  rect(buf, 0, GAUGE_BASE_Y, 60, 1, { fill: true });
+  if (g > 0) rect(buf, 1, GAUGE_BAR_Y, g, 4, { fill: true });
+}
+
+function drawBigLabel(buf, label) {
+  const sx = 4, sy = 4;
+  const tw = textWidth(label, sx);
+  drawText(buf, label, Math.max(0, Math.floor((W - tw) / 2)), 4, sx, sy);
+}
+
+export function textLineHex(str) {
+  const cells = strToTextCells(str);
+  let hex = '';
+  for (let i = 0; i < 20; i++) {
+    const b = cells[i] || 0;
+    const h = b.toString(16).toUpperCase();
+    hex += (h.length < 2 ? '0' : '') + h;
+  }
+  return hex;
+}
+
+/* 언어 설정: lang('ko'|'en') 우선, 구버전 brailleKo 폴백 */
+function isKo() {
+  const p = getPrefs();
+  return p.lang ? p.lang === 'ko' : !!p.brailleKo;
+}
+
+export function statusText(st) {
+  const ko = isKo();
+  const pv = st.player.length ? handValue(st.player).total : 0;
+  const dUp = st.dealer.length ? handValue(st.hideHole ? [st.dealer[0]] : st.dealer).total : 0;
+  switch (st.phase) {
+    case 'bet': return ko ? '베팅 ' + st.bet + ' 칩 ' + st.chips : 'bet ' + st.bet + ' chips ' + st.chips;
+    case 'player': return ko ? '나 ' + pv + ' 딜러 ' + dUp : 'you ' + pv + ' dealer ' + dUp;
+    case 'dealer': return (ko ? '딜러 ' : 'dealer ') + dUp;
+    case 'result': {
+      const o = st.result ? st.result.outcome : '';
+      const en = { blackjack: 'bj', win: 'win', push: 'push', lose: 'lose', bust: 'bust' };
+      const kow = { blackjack: '블랙잭', win: '승', push: '무', lose: '패', bust: '버스트' };
+      return ((ko ? kow[o] : en[o]) || o) + (ko ? ' 칩 ' : ' chips ') + st.chips;
+    }
+    case 'over': return ko ? '게임 끕 에프원 새게임' : 'game over f1 new';
+    default: return ko ? '블랙잭' : 'blackjack';
+  }
+}
+
+/* ── 멀티플레이: 방 공개 상태 + 내 ID → 내 시점 촉각 프레임 ── */
+export function roomStatusText(st, myId) {
+  const ko = isKo();
+  const score = st.opts && st.opts.scoreMode;
+  const CH = score ? (ko ? '점수' : 'pts') : (ko ? '칩' : 'chips');
+  const me = st.players.find((p) => p.id === myId);
+  if (!me) return ko ? '관전' : 'watching';
+  const shown = st.dealer.filter((c) => !c.hidden);
+  const dv = shown.length ? handValue(shown).total : 0;
+  const pv = me.cards.length ? handValue(me.cards).total : 0;
+  switch (st.phase) {
+    case 'lobby': return ko ? '대기 ' + st.players.length + '명' : 'room wait ' + st.players.length + 'p';
+    case 'betting':
+      if (me.sitOut) return ko ? '관전 ' + CH + ' 0' : 'sit out ' + CH + ' 0';
+      return ko ? '베팅 ' + me.bet + ' ' + CH + ' ' + me.chips : 'bet ' + me.bet + ' ' + CH + ' ' + me.chips;
+    case 'insurance': return ko ? '보험? 에프원 에프투' : 'insure? f1 f2';
+    case 'acting': {
+      const mine = st.turnId === myId;
+      const hand2 = me.hands && me.hands.length > 1 ? (ko ? ' 핸드' + (me.activeHand + 1) : ' h' + (me.activeHand + 1)) : '';
+      return (ko ? (mine ? '나 ' : '대기 ') : (mine ? 'you ' : 'wait ')) + pv + (ko ? ' 딜러 ' : ' dealer ') + dv + hand2;
+    }
+    case 'dealer': return (ko ? '딜러 ' : 'dealer ') + dv;
+    case 'result': {
+      const en = { blackjack: 'bj', win: 'win', push: 'push', lose: 'lose', bust: 'bust' };
+      const kow = { blackjack: '블랙잭', win: '승', push: '무', lose: '패', bust: '버스트' };
+      const outcomes = (me.results && me.results.length ? me.results : [me.result]).filter(Boolean);
+      const word = outcomes.map((o) => (ko ? kow[o] : en[o]) || '').join(' ');
+      return (word || (ko ? '끕' : 'done')) + ' ' + CH + ' ' + me.chips;
+    }
+    default: return ko ? '블랙잭' : 'blackjack';
+  }
+}
+
+export function renderRoom(st, myId) {
+  const buf = createFrame();
+  clearBuf(buf);
+  const me = st.players.find((p) => p.id === myId);
+
+  if (!me || st.phase === 'lobby' || st.phase === 'betting') {
+    const label = me && !me.sitOut && st.phase === 'betting' ? String(me.bet) : String(st.players.length) ;
+    drawBigLabel(buf, label);
+    if (me) drawGauge(buf, me.chips);
+  } else if (st.phase === 'insurance') {
+    drawHand(buf, st.dealer, DEALER_Y, false);
+    dashedHLine(buf, DIVIDER_Y);
+    dashedHLine(buf, DIVIDER_Y + 1);
+    drawHand(buf, me.cards, PLAYER_Y, false);
+    rect(buf, 0, 38, 60, 2, { fill: true });
+  } else {
+    drawHand(buf, st.dealer, DEALER_Y, false);
+    dashedHLine(buf, DIVIDER_Y);
+    dashedHLine(buf, DIVIDER_Y + 1);
+    drawHand(buf, me.cards, PLAYER_Y, false);
+    if (st.phase === 'acting' && st.turnId === myId) {
+      rect(buf, 0, 39, 60, 1, { fill: true });
+    }
+  }
+  return { buf, rows: encodeRows(buf), textHex: textLineHex(roomStatusText(st, myId)) };
+}
+
+export function renderGame(st) {
+  const buf = createFrame();
+  clearBuf(buf);
+
+  if (st.phase === 'bet' || st.phase === 'over') {
+    const label = st.phase === 'over' ? '0' : String(st.bet);
+    drawBigLabel(buf, label);
+    drawGauge(buf, st.chips);
+  } else {
+    drawHand(buf, st.dealer, DEALER_Y, st.hideHole);
+    dashedHLine(buf, DIVIDER_Y);
+    dashedHLine(buf, DIVIDER_Y + 1);
+    drawHand(buf, st.player, PLAYER_Y, false);
+    if (st.pulse) {
+      rect(buf, 0, 0, 60, 40);
+      rect(buf, 1, 1, 58, 38);
+    }
+  }
+
+  return { buf, rows: encodeRows(buf), textHex: textLineHex(statusText(st)) };
+}
