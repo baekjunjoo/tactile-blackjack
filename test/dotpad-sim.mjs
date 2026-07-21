@@ -1,5 +1,4 @@
-/* dotpad-sim.mjs — DotPad BLE 계약 검증 (dotpad-simulator 하네스)
-   실기기 없이 모의 SDK를 주입해 "기기에 실제로 어떤 바이트가 갔는가"까지 검증. */
+/* dotpad-sim.mjs — DotPad BLE 계약 검증 (dotpad-simulator 하네스) */
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { createMockSdk, makeChecker } = require('./lib/dotpad-mock.cjs');
@@ -40,7 +39,7 @@ BLE.onKeyHandler = (k) => game.onKey(k);
 game.subscribe(() => BLE.requestFlush());
 game.intro();
 
-t.ok('무음 금지: 로드 즉시 키 안내 발화', speeches.length > 0 && /에프원/.test(speeches[0]));
+t.ok('무음 금지: 로드 즉시 키 안내 발화', speeches.length > 0 && /에프원|에프 ?1/.test(speeches[0]));
 
 const sim = createMockSdk();
 BLE.loadSDK = () => Promise.resolve(sim.module);

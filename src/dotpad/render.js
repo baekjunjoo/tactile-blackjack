@@ -57,7 +57,6 @@ export function textLineHex(str) {
   return hex;
 }
 
-/* 언어 설정: lang('ko'|'en') 우선, 구버전 brailleKo 폴백 */
 function isKo() {
   const p = getPrefs();
   return p.lang ? p.lang === 'ko' : !!p.brailleKo;
@@ -82,7 +81,6 @@ export function statusText(st) {
   }
 }
 
-/* ── 멀티플레이: 방 공개 상태 + 내 ID → 내 시점 촉각 프레임 ── */
 export function roomStatusText(st, myId) {
   const ko = isKo();
   const score = st.opts && st.opts.scoreMode;
