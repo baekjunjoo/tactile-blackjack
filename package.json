@@ -1,0 +1,24 @@
+{
+  "name": "tactile-blackjack",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "촉각 블랙잭 — 시각장애인(웹+DotPad)·비장애인(웹) 크로스플레이 블랙잭 (60x40 촉각 + 20셀 점자 + F1~F4/팬)",
+  "scripts": {
+    "dev": "vite",
+    "assets": "node scripts/fetch-assets.mjs",
+    "prebuild": "node scripts/fetch-assets.mjs || true",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node test/logic.test.mjs && node test/dotpad-sim.mjs && node test/table.test.mjs && node test/v3.test.mjs && node test/insurance.test.mjs && node test/highlow.test.mjs && node test/refactor.test.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.4.0"
+  }
+}
