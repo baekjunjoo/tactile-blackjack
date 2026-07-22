@@ -1,6 +1,7 @@
 /* fetch-assets.mjs — 빌드에 필요한 외부 자산을 public/ 로 다운로드 (자체 호스팅)
    1) 힙스필드 이미지 16종 → public/img/
-   2) DotPad 공식 SDK → public/DotPadSDK-3.0.0.js
+   2) 게임 썸네일 → public/img/thumbnail.png
+   3) DotPad 공식 SDK → public/DotPadSDK-3.0.0.js
    실행: node scripts/fetch-assets.mjs (npm run build 의 prebuild 단계에서 자동 실행) */
 import { mkdirSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
@@ -26,6 +27,9 @@ const IMAGES = {
   'av-owl.webp': 'hf_20260720_043248_11eb203c-b388-4eb1-9898-19520bbf262c_min.webp'
 };
 
+// 게임 썸네일 (풀 해상도 PNG)
+const THUMB = 'hf_20260722_071209_572cf63b-46a2-498a-b3d9-047e0f554913.png';
+
 // DotPad 공식 SDK (원본: baekjunjoo/superdot 루트)
 const SDK_URL = 'https://raw.githubusercontent.com/baekjunjoo/superdot/main/DotPadSDK-3.0.0.js';
 
@@ -43,6 +47,14 @@ for (const [name, file] of Object.entries(IMAGES)) {
   } catch (e) { console.error('이미지 오류:', name, e.message); fail++; }
 }
 console.log(`이미지 ${ok} 성공 / ${fail} 실패 → public/img/`);
+
+try {
+  const res = await fetch(CDN + THUMB);
+  if (res.ok) {
+    writeFileSync(join(imgDir, 'thumbnail.png'), Buffer.from(await res.arrayBuffer()));
+    console.log('썸네일 저장 → public/img/thumbnail.png');
+  } else console.error('썸네일 실패:', res.status);
+} catch (e) { console.error('썸네일 오류:', e.message); }
 
 try {
   const res = await fetch(SDK_URL);
